@@ -131,96 +131,79 @@ class BaseBuyerAgent(ABC):
 
 class YourBuyerAgent(BaseBuyerAgent):
     """
-    YOUR BUYER AGENT IMPLEMENTATION
-    
-    Tips for success:
-    1. Stay in character - consistency matters!
-    2. Never exceed your budget
-    3. Aim for the best deal, but know when to close
-    4. Use market price as reference
-    5. Maximum 10 rounds - don't let negotiations timeout
+    Custom Buyer Agent Implementation
+    Personality: Diplomatic & Strategic
+    - Starts with polite but firm offers
+    - Uses market price as a guide
+    - Negotiates steadily, increases only when necessary
+    - Closes deals before timeout while maximizing savings
     """
-    
+
     def define_personality(self) -> Dict[str, Any]:
-        """
-        TODO: Define your agent's unique personality
-        
-        Choose from: aggressive, analytical, diplomatic, or create custom
-        """
-        # IMPLEMENT YOUR PERSONALITY HERE
         return {
-            "personality_type": "custom",  # Change this
-            "traits": ["trait1", "trait2"],  # Define 3-5 traits
-            "negotiation_style": "Description of your approach",
-            "catchphrases": ["phrase1", "phrase2"]  # 2-3 signature phrases
+            "personality_type": "diplomatic",
+            "traits": ["polite", "strategic", "budget-conscious", "persistent", "fair-minded"],
+            "negotiation_style": (
+                "Begins negotiations politely but firmly. Makes realistic offers slightly below "
+                "market price and gradually increases toward fair value if needed. Avoids overpaying, "
+                "but ensures deals close before timeout. Balances friendliness with firmness."
+            ),
+            "catchphrases": [
+                "Let's be reasonable here.",
+                "I respect quality, but price matters too.",
+                "We can both walk away happy."
+            ]
         }
-    
+
     def generate_opening_offer(self, context: NegotiationContext) -> Tuple[int, str]:
-        """
-        TODO: Generate your opening offer
-        
-        Consider:
-        - Product's base market price
-        - Your budget constraints  
-        - Your personality's approach
-        - Quality grade and origin
-        """
-        # IMPLEMENT YOUR OPENING STRATEGY HERE
-        
-        # Example (replace with your logic):
-        opening_price = int(context.product.base_market_price * 0.7)  # 30% below market
-        
+        # Start ~65% of market price (polite but assertive opening)
+        opening_price = int(context.product.base_market_price * 0.65)
+
         # Ensure within budget
         opening_price = min(opening_price, context.your_budget)
-        
-        message = f"I'll offer ₹{opening_price} for these {context.product.name}."
-        
+
+        message = (
+            f"As a fair starting point, I can offer ₹{opening_price} "
+            f"for your {context.product.quality_grade}-grade {context.product.name}. "
+            "Let's find common ground."
+        )
+
         return opening_price, message
-    
-    def respond_to_seller_offer(self, context: NegotiationContext, seller_price: int, seller_message: str) -> Tuple[DealStatus, int, str]:
-        """
-        TODO: Implement your response strategy
-        
-        Remember:
-        - Analyze if the seller's price is acceptable
-        - Consider how many rounds have passed
-        - Maintain your personality
-        - Know when to accept vs counter-offer
-        """
-        # IMPLEMENT YOUR RESPONSE STRATEGY HERE
-        
-        # Example logic (replace with your strategy):
-        
-        # Check if price is within budget and reasonable
-        if seller_price <= context.your_budget:
-            # Simple acceptance logic - improve this!
-            if seller_price <= context.product.base_market_price * 0.9:
-                return DealStatus.ACCEPTED, seller_price, f"Deal accepted at ₹{seller_price}!"
-        
-        # Counter-offer logic
-        if context.current_round >= 8:  # Getting close to timeout
-            # Make more aggressive moves
-            counter_offer = min(int(seller_price * 0.95), context.your_budget)
-        else:
-            # Normal negotiation
-            counter_offer = min(int(seller_price * 0.85), context.your_budget)
-        
-        message = f"I can go up to ₹{counter_offer}."
-        
+
+    def respond_to_seller_offer(
+        self, context: NegotiationContext, seller_price: int, seller_message: str
+    ) -> Tuple[DealStatus, int, str]:
+        market_price = context.product.base_market_price
+        budget = context.your_budget
+        round_num = context.current_round
+
+        # If seller price is within budget and reasonable (<= 90% of market), accept
+        if seller_price <= budget and seller_price <= int(market_price * 0.9):
+            return DealStatus.ACCEPTED, seller_price, f"Agreed! ₹{seller_price} is a fair deal. {random.choice(self.personality['catchphrases'])}"
+
+        # Otherwise, calculate counter-offer
+        last_offer = context.your_offers[-1] if context.your_offers else int(market_price * 0.65)
+
+        # Become more flexible as rounds increase
+        if round_num >= 8:  # Close to timeout → more generous
+            counter_offer = min(int((last_offer + seller_price) / 2), budget)
+        else:  # Normal strategy → step up slowly
+            counter_offer = min(int(last_offer * 1.15), budget)
+
+        message = (
+            f"I understand your position. How about ₹{counter_offer}? "
+            f"{random.choice(self.personality['catchphrases'])}"
+        )
+
         return DealStatus.ONGOING, counter_offer, message
-    
+
     def get_personality_prompt(self) -> str:
-        """
-        TODO: Write a detailed prompt for your agent's communication style
-        
-        This should be 3-5 sentences describing how your agent talks,
-        what phrases they use, their tone, etc.
-        """
-        # IMPLEMENT YOUR PERSONALITY PROMPT HERE
         return """
-        I am a [your personality type] buyer who [describe communication style].
-        I typically [describe behavior patterns].
-        My catchphrases include [list some phrases].
+        I am a diplomatic and strategic buyer. I negotiate politely but firmly, always keeping my budget in mind. 
+        I begin with reasonable offers below market price and gradually increase if the seller is fair. 
+        My tone is respectful and professional, but I insist on value for money. 
+        I often say things like 'Let's be reasonable here', 'I respect quality, but price matters too', 
+        and 'We can both walk away happy'. My goal is to secure the best deal while keeping negotiations positive.
         """
 
     # ============================================
